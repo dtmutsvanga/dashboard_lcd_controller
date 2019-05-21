@@ -53,6 +53,7 @@
 /* USER CODE BEGIN Includes */
 #include "nokia5110_LCD.h"
 #include "stdio.h"
+#include "logos.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -399,9 +400,15 @@ void StartDefaultTask(void const * argument)
 
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
+  HAL_IWDG_Refresh(&hiwdg);
   HAL_I2C_EnableListen_IT(&hi2c1);
   HAL_I2C_Slave_Sequential_Receive_IT(&hi2c1, pdata, size, I2C_NEXT_FRAME);
   LCD_Init_Pins();
+  HAL_IWDG_Refresh(&hiwdg);
+  LCD_drawBitMap((char*)ford_logo_84x48);
+  vTaskDelay(900);
+  HAL_IWDG_Refresh(&hiwdg);
+  LCD_clrScr();
   for(;;)
   {
     

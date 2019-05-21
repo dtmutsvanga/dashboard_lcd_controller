@@ -74,7 +74,7 @@ void LCD_write(uint8_t data, uint8_t mode){
  * @brief Initialize the LCD using predetermined values
  */
 void LCD_init(){
-  uint8_t cntrast = 0x3a;
+  uint8_t cntrast = 0x30;
   HAL_GPIO_WritePin(lcd_gpio.RSTPORT, lcd_gpio.RSTPIN, GPIO_PIN_RESET);
   vTaskDelay(30);
   HAL_GPIO_WritePin(lcd_gpio.RSTPORT, lcd_gpio.RSTPIN, GPIO_PIN_SET);
@@ -176,6 +176,15 @@ void LCD_refreshScr(){
   for(int i = 0; i < 6; i++){
     for(int j = 0; j < LCD_WIDTH; j++){
       LCD_write(lcd.buffer[(i * LCD_WIDTH) + j], LCD_DATA);
+    }
+  }
+}
+
+void LCD_drawBitMap(char *bm){
+  LCD_goXY(LCD_SETXADDR, LCD_SETYADDR);
+  for(int i = 0; i < 6; i++){
+    for(int j = 0; j < LCD_WIDTH; j++){
+      LCD_write(bm[(i * LCD_WIDTH) + j], LCD_DATA);
     }
   }
 }

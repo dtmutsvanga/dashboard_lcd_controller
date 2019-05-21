@@ -123,6 +123,7 @@ void dashb_to_lcd_char( char c);
  * in order to send data to the LCD.
  */
 void LCD_refreshScr();
+void LCD_drawBitMap(char *bm);
 void LCD_refreshArea(uint8_t xmin, uint8_t ymin, uint8_t xmax, uint8_t ymax);
 void LCD_setPixel(uint8_t x, uint8_t y, bool pixel);
 void LCD_drawHLine(int x, int y, int l);
