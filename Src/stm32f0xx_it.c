@@ -114,7 +114,6 @@ void TIM1_BRK_UP_TRG_COM_IRQHandler(void)
 
   /* USER CODE END TIM1_BRK_UP_TRG_COM_IRQn 1 */
 }
-
 /**
 * @brief This function handles I2C1 global interrupt.
 */

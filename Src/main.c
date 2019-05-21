@@ -49,15 +49,16 @@
 #include "main.h"
 #include "stm32f0xx_hal.h"
 #include "cmsis_os.h"
-#include "stdio.h"
-#include "nokia5110_LCD.h"
 
 /* USER CODE BEGIN Includes */
-
+#include "nokia5110_LCD.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+
+IWDG_HandleTypeDef hiwdg;
 
 osThreadId defaultTaskHandle;
 
@@ -70,8 +71,9 @@ osThreadId defaultTaskHandle;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_IWDG_Init(void);
 void StartDefaultTask(void const * argument);
-
+void LedBlink(void);
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
@@ -97,10 +99,9 @@ int main(void)
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-  for (int i=0; i< 48000000/70; i++);
-  
-  /* USER CODE BEGIN Init */
 
+  /* USER CODE BEGIN Init */
+  //for (int i=0; i< 48000000/70; i++);
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -113,6 +114,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_I2C1_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -134,9 +136,8 @@ int main(void)
   /* definition and creation of defaultTask */
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 96);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-
-  /* USER CODE BEGIN RTOS_THREADS */
   
+  /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
@@ -177,9 +178,10 @@ void SystemClock_Config(void)
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL12;
@@ -233,7 +235,7 @@ static void MX_I2C1_Init(void)
   hi2c1.Init.OwnAddress2 = 0;
   hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
   hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode =I2C_NOSTRETCH_ENABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_ENABLE;
   if (HAL_I2C_Init(&hi2c1) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -249,6 +251,21 @@ static void MX_I2C1_Init(void)
     /**Configure Digital filter 
     */
   if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
+/* IWDG init function */
+static void MX_IWDG_Init(void)
+{
+
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;     //32KHz clock, 
+  hiwdg.Init.Window = 4095; // Disable window
+  hiwdg.Init.Reload = 1000;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -339,6 +356,7 @@ void HAL_I2C_SlaveRxCpltCallback(I2C_HandleTypeDef *hi2c) {
     size=2;
     pdata=pdata_cmd;
     frame_type=I2C_LAST_FRAME;
+    HAL_IWDG_Refresh(&hiwdg);
     break;
   }
   }
@@ -362,7 +380,6 @@ uint8_t data=0x35;
 uint8_t pdisp_buff_1[15];
 uint8_t pdisp_buff_2[15];
 /* USER CODE END 4 */
-
 uint8_t ptest_data[]={0x46, 0x4f, 0x56, 0x5f,0x65, 0x6D,0x75, 0x7D};
 void lcd_print_dash_board(char *pd, uint8_t len, uint8_t x, uint8_t y){
   LCD_goXY(x, y);
@@ -374,14 +391,14 @@ void lcd_print_dash_board(char *pd, uint8_t len, uint8_t x, uint8_t y){
   }
   while(len && pd) ;
 }
+
+
 /* StartDefaultTask function */
 void StartDefaultTask(void const * argument)
 {
-  static uint8_t size=15;
 
   /* USER CODE BEGIN 5 */
   /* Infinite loop */
-  HAL_StatusTypeDef err_1;
   HAL_I2C_EnableListen_IT(&hi2c1);
   HAL_I2C_Slave_Sequential_Receive_IT(&hi2c1, pdata, size, I2C_NEXT_FRAME);
   LCD_Init_Pins();
@@ -394,13 +411,28 @@ void StartDefaultTask(void const * argument)
     pdisp_buff_1[i] = pdata_1[i];
     pdisp_buff_2[i] = pdata_2[i];
    }
-   lcd_print_dash_board(pdisp_buff_1+1, 15, 0, 2);
-   lcd_print_dash_board(pdisp_buff_2+1, 15, 0, 3);
+   lcd_print_dash_board((char*)(pdisp_buff_1+1), 15, 0, 2);
+   lcd_print_dash_board((char*)pdisp_buff_2+1, 15, 0, 3);
+   LedBlink();
    vTaskDelay(25);
   }
-  /* USER CODE END 5 */ 
-}
 
+}
+void LedBlink(){
+  static uint32_t delay = 50;
+  static GPIO_PinState state = GPIO_PIN_SET;
+  static uint32_t last_tick =0;
+  
+  if(xTaskGetTickCount() - last_tick > delay)
+  {
+    last_tick=xTaskGetTickCount();
+    HAL_GPIO_WritePin(LED1_GPIO_Port,LED1_Pin, state);
+    state = !state;
+    if(state) delay = 25;
+    else delay = 3975;
+  }
+}
+  /* USER CODE END 5 */ 
 /**
   * @brief  Period elapsed callback in non blocking mode
   * @note   This function is called  when TIM1 interrupt took place, inside
