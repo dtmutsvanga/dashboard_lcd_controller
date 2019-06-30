@@ -99,6 +99,9 @@ struct LCD_GPIO{
 	uint16_t CLKPIN;
 };
 
+/* Pin contrast */
+extern uint8_t contrast;
+
 /*----- GPIO Pins -----*/
 void LCD_setRST(GPIO_TypeDef* PORT, uint16_t PIN);
 void LCD_setCE(GPIO_TypeDef* PORT, uint16_t PIN);
