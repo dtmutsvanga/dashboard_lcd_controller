@@ -54,18 +54,6 @@
 /* Includes ------------------------------------------------------------------*/
 
 /* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN defines */
-#define LED1_Pin GPIO_PIN_4
-#define LED1_GPIO_Port GPIOA
-#define I2C_SCL_Pin GPIO_PIN_9
-#define I2C_SCL_GPIO_Port GPIOA
-#define I2C_SDA_Pin GPIO_PIN_10
-#define I2C_SDA_GPIO_Port GPIOA
-
 // Nokia 5110 LCD Pin Definitions
 #define LCD_PORT        GPIOA
 #define LCD_RST GPIO_PIN_5
@@ -74,6 +62,17 @@
 #define LCD_DIN GPIO_PIN_13
 #define LCD_CK GPIO_PIN_14
 /* USER CODE END defines */
+/* USER CODE END Includes */
+
+/* Private define ------------------------------------------------------------*/
+
+#define LED1_Pin GPIO_PIN_4
+#define LED1_GPIO_Port GPIOA
+#define I2C_SCL_Pin GPIO_PIN_9
+#define I2C_SCL_GPIO_Port GPIOA
+#define I2C_SDA_Pin GPIO_PIN_10
+#define I2C_SDA_GPIO_Port GPIOA
+
 /* ########################## Assert Selection ############################## */
 /**
   * @brief Uncomment the line below to expanse the "assert_param" macro in the 

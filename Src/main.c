@@ -57,6 +57,8 @@
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc;
+
 I2C_HandleTypeDef hi2c1;
 
 IWDG_HandleTypeDef hiwdg;
@@ -65,7 +67,7 @@ osThreadId defaultTaskHandle;
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
-
+ uint8_t contrast;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -73,12 +75,15 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_IWDG_Init(void);
-void StartDefaultTask(void const * argument);
+static void MX_ADC_Init(void);
+uint8_t readADC(void);
 void LedBlink(void);
+void StartDefaultTask(void const * argument);
+
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
 
-void LCD_Init_Pins();
+void LCD_Init_Pins(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
@@ -113,11 +118,15 @@ int main(void)
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+	MX_ADC_Init();
+	for (int i=0; i< 48000000/70; i++);
+  /* USER CODE BEGIN 2 */
+	contrast = readADC();
+	
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_IWDG_Init();
-  /* USER CODE BEGIN 2 */
-
+  
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -137,7 +146,7 @@ int main(void)
   /* definition and creation of defaultTask */
   osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 96);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
-  
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -179,9 +188,12 @@ void SystemClock_Config(void)
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSI14
+                              |RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
   RCC_OscInitStruct.HSICalibrationValue = 16;
+  RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
@@ -224,6 +236,45 @@ void SystemClock_Config(void)
   HAL_NVIC_SetPriority(SysTick_IRQn, 3, 0);
 }
 
+/* ADC init function */
+static void MX_ADC_Init(void)
+{
+
+  ADC_ChannelConfTypeDef sConfig;
+
+    /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
+    */
+  hadc.Instance = ADC1;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc.Init.Resolution = ADC_RESOLUTION_8B;
+  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc.Init.LowPowerAutoWait = DISABLE;
+  hadc.Init.LowPowerAutoPowerOff = DISABLE;
+  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.DiscontinuousConvMode = DISABLE;
+  hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc.Init.DMAContinuousRequests = DISABLE;
+  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  if (HAL_ADC_Init(&hadc) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+    /**Configure for the selected ADC regular channel to be converted. 
+    */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+}
+
 /* I2C1 init function */
 static void MX_I2C1_Init(void)
 {
@@ -263,9 +314,9 @@ static void MX_IWDG_Init(void)
 {
 
   hiwdg.Instance = IWDG;
-  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;     //32KHz clock, 
-  hiwdg.Init.Window = 4095; // Disable window
-  hiwdg.Init.Reload = 1000;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
+  hiwdg.Init.Window = 4095;
+  hiwdg.Init.Reload =  1000;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -301,6 +352,12 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+uint8_t readADC(){
+  HAL_ADC_Start(&hadc);
+  if(HAL_ADC_PollForConversion(&hadc,10000)!=HAL_OK) return 0;
+  
+  return (uint8_t)HAL_ADC_GetValue(&hadc);
+}
 void LCD_Init_Pins(){
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
@@ -308,7 +365,6 @@ void LCD_Init_Pins(){
     
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LCD_PORT, LCD_CE|LCD_RST|LCD_DC|LCD_DIN|LCD_CK, GPIO_PIN_RESET);
-
   /*Configure GPIO pin : LCD_XXX */
   GPIO_InitStruct.Pin = LCD_CE|LCD_RST|LCD_DC|LCD_DIN|LCD_CK;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -380,7 +436,6 @@ void HAL_I2C_ErrorCallback(I2C_HandleTypeDef *hi2c) {
 uint8_t data=0x35;
 uint8_t pdisp_buff_1[15];
 uint8_t pdisp_buff_2[15];
-/* USER CODE END 4 */
 uint8_t ptest_data[]={0x46, 0x4f, 0x56, 0x5f,0x65, 0x6D,0x75, 0x7D};
 void lcd_print_dash_board(char *pd, uint8_t len, uint8_t x, uint8_t y){
   LCD_goXY(x, y);
@@ -392,7 +447,7 @@ void lcd_print_dash_board(char *pd, uint8_t len, uint8_t x, uint8_t y){
   }
   while(len && pd) ;
 }
-
+/* USER CODE END 4 */
 
 /* StartDefaultTask function */
 void StartDefaultTask(void const * argument)
@@ -439,6 +494,7 @@ void LedBlink(){
     else delay = 3975;
   }
 }
+
   /* USER CODE END 5 */ 
 /**
   * @brief  Period elapsed callback in non blocking mode
@@ -503,3 +559,4 @@ void assert_failed(uint8_t* file, uint32_t line)
   */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
+
