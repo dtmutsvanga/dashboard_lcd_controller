@@ -76,18 +76,25 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_IWDG_Init(void);
 static void MX_ADC_Init(void);
-uint8_t readADC(void);
-void LedBlink(void);
 void StartDefaultTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
-
+uint8_t readADC(void);
+void LedBlink(void);
 void LCD_Init_Pins(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-
+long map(long x, long in_min, long in_max, long out_min, long out_max)
+{
+	if( x == in_max)
+		return out_max;
+	else if(out_min < out_max)
+		return (x - in_min) * (out_max - out_min+1) / (in_max - in_min) + out_min;
+	else
+		return (x - in_min) * (out_max - out_min-1) / (in_max - in_min) + out_min;
+}
 /* USER CODE END 0 */
 
 /**
@@ -115,17 +122,21 @@ int main(void)
 
   /* USER CODE BEGIN SysInit */
   // 
+	MX_ADC_Init();
+	uint8_t temp = 0x30 + 	(0xff/(0x40-0x30));
+	
+	for (int i=0; i< 48000000/70; i++);
+	temp =  readADC();
+	contrast = (uint8_t) map(temp, 0L, 0xffL, 0x30L, 0x40L);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-	MX_ADC_Init();
-	for (int i=0; i< 48000000/70; i++);
-  /* USER CODE BEGIN 2 */
-	contrast = readADC();
-	
   MX_GPIO_Init();
   MX_I2C1_Init();
   MX_IWDG_Init();
+  
+  /* USER CODE BEGIN 2 */
+
   
   /* USER CODE END 2 */
 
@@ -316,7 +327,7 @@ static void MX_IWDG_Init(void)
   hiwdg.Instance = IWDG;
   hiwdg.Init.Prescaler = IWDG_PRESCALER_32;
   hiwdg.Init.Window = 4095;
-  hiwdg.Init.Reload =  1000;
+  hiwdg.Init.Reload = 1000;
   if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
@@ -496,9 +507,10 @@ void LedBlink(){
 }
 
   /* USER CODE END 5 */ 
+
 /**
   * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM1 interrupt took place, inside
+  * @note   This function is called  when TIM3 interrupt took place, inside
   * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
   * a global variable "uwTick" used as application time base.
   * @param  htim : TIM handle
@@ -509,7 +521,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   /* USER CODE BEGIN Callback 0 */
 
   /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM1) {
+  if (htim->Instance == TIM3) {
     HAL_IncTick();
   }
   /* USER CODE BEGIN Callback 1 */
@@ -559,4 +571,3 @@ void assert_failed(uint8_t* file, uint32_t line)
   */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
-
